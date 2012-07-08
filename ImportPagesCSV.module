@@ -75,6 +75,7 @@ class ImportPagesCSV extends Process implements Module {
 	 */
 	protected $fieldtypes = array(
 		'FieldtypePageTitle',
+		'FieldtypePage',
 		'FieldtypeText',
 		'FieldtypeTextarea',
 		'FieldtypeInteger',
@@ -442,8 +443,17 @@ class ImportPagesCSV extends Process implements Module {
 			$data[$name] = $value; 
 			$page->ImportPagesCSVData = $data; 
 
-		} else { 
-
+        } else if($field->type instanceof FieldtypePage) {
+            if($field->derefAsPage > 0) {
+                //Array
+                //multivalued fields separated by commas;
+                $val = implode('|', explode(',', $value));
+                $page->set($name, $this->pages->find("name=$val"));
+            } else {
+                //Single
+                $page->set($name, $this->pages->get("title=$value"));
+            }
+        } else { 
 			$page->set($name, $value); 
 			if($name == 'title') $page->name = $this->sanitizer->pageName($value); 
 		}
