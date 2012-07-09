@@ -117,7 +117,7 @@ class ImportPagesCSV extends Process implements Module {
 		$this->parent = $this->pages->get($this->session->csvParent); 
 		$this->csvFilename = $this->session->csvFilename; 
 
-		if(!$this->template || !$this->parent->id || !$this->csvFilename) {
+		if(!$this->template /*|| !$this->parent->id*/ || !$this->csvFilename) {
 			$this->error("Missing required fields"); 
 			$this->session->redirect("../"); 
 		}
@@ -156,10 +156,16 @@ class ImportPagesCSV extends Process implements Module {
 		$f = $this->modules->get("InputfieldPageListSelect"); 
 		$f->name = 'parent_id';
 		$f->label = 'Parent Page';
-		$f->required = true; 
+		$f->required = false; 
 		$f->description = "The pages you import will be given this parent.";
 		if($this->session->csvParent) $f->attr('value', $this->session->csvParent); 
 		$form->add($f); 
+
+        $f = $this->modules->get("InputfieldCheckbox");
+        $f->set('id+name', 'parent_field');
+        $f->description = "Each page's parent is defined in a parent column.";
+        if($this->session->csvParentField) $f->attr('value', $this->session->csvParentField);
+        $form->add($f);
 
 		$f = $this->modules->get("InputfieldFile"); 
 		$f->name = 'csv_file';
@@ -252,6 +258,7 @@ class ImportPagesCSV extends Process implements Module {
 		$this->session->csvEnclosure = substr($form->get('csv_enclosure')->value, 0, 1); 
 		$this->session->csvDuplicate = (int) $form->get('csv_duplicate')->value;
 		$this->session->csvMaxRows = (int) $form->get('csv_max_rows')->value; 
+		$this->session->csvParentField = (int) $form->get('parent_field')->value; 
 
 		$csvFile = $form->get('csv_file')->value; 
 		$csvData = $form->get('csv_data')->value; 
@@ -378,7 +385,12 @@ class ImportPagesCSV extends Process implements Module {
 	protected function importPage(array $data, InputfieldForm $form) {
 
 		$page = new Page();
-		$page->parent = $this->parent; 
+        if($this->session->csvParentField === true) {
+            $name = $data['parent'];
+            $name = $this->sanitizer->pageName($name);
+        } else {
+            $page->parent = $this->parent; 
+        }
 		$page->template = $this->template; 
 		$page->ImportPagesCSVData = array(); // data to set after page is saved
 		$fieldNames = array();
@@ -445,13 +457,15 @@ class ImportPagesCSV extends Process implements Module {
 
         } else if($field->type instanceof FieldtypePage) {
             if($field->derefAsPage > 0) {
-                //Array
-                //multivalued fields separated by commas;
-                $val = implode('|', explode(',', $value));
-                $page->set($name, $this->pages->find("name=$val"));
-            } else {
                 //Single
                 $page->set($name, $this->pages->get("title=$value"));
+            } else {
+                //Array
+                //multivalued fields separated by commas;
+                $val = explode(',', $value);
+                foreach($val as &$v) $v = trim($v);
+                $val = implode('|', $val);
+                $page->set($name, $this->pages->find("name=$val"));
             }
         } else { 
 			$page->set($name, $value); 
