@@ -84,6 +84,7 @@ class ImportPagesCSV extends Process implements Module {
 		'FieldtypeURL',
 		'FieldtypeCheckbox',
 		'FieldtypeFile',
+        'FieldtypePassword',
 		);
 
 	/**
@@ -444,14 +445,23 @@ class ImportPagesCSV extends Process implements Module {
 			$page->ImportPagesCSVData = $data; 
 
         } else if($field->type instanceof FieldtypePage) {
-            if($field->derefAsPage > 0) {
+            $value = trim($value);
+            if($field->derefAsPage == 0) {
                 //Array
                 //multivalued fields separated by commas;
                 $val = implode('|', explode(',', $value));
-                $page->set($name, $this->pages->find("name=$val"));
+                try{
+                    $page->set($name, $this->pages->find("name=$val"));
+                } catch(Exception $e) {
+                    throw new Exception('Invalid selector in array deref: ' . $val);
+                }
             } else {
                 //Single
-                $page->set($name, $this->pages->get("title=$value"));
+                try{
+                    $page->set($name, $this->pages->get("title=$value"));
+                } catch(Exception $e) {
+                    throw new Exception('Invalid selector in single deref: ' . $value);
+                }
             }
         } else { 
 			$page->set($name, $value); 
