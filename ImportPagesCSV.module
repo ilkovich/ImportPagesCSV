@@ -458,6 +458,8 @@ class ImportPagesCSV extends Process implements Module {
             } else {
                 //Single
                 try{
+                    //escape commas in title
+                    $value = preg_replace("|,|", '\,', $value);
                     $page->set($name, $this->pages->get("title=$value"));
                 } catch(Exception $e) {
                     throw new Exception('Invalid selector in single deref: ' . $value);
